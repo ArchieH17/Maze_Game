@@ -1,37 +1,37 @@
 from pygame.locals import *
 import pygame
 
-player_width = 25
-player_height = 25
-wall_width = 50
-wall_height = 50
+player_width = 32
+player_height = 32
+wall_width = 64
+wall_height = 64
 
 
 class Player(pygame.sprite.Sprite):
     x = 50
     y = 50
-    speed = 0.4
+    speed = 8
 
     def __init__(self):
         super(Player, self).__init__()
         self.image = pygame.transform.scale(
-            pygame.image.load("black.png"), (player_width, player_height))
+            pygame.image.load("player.png"), (player_width, player_height))
         self.mask = pygame.mask.from_surface(self.image)
         self.rect = self.image.get_rect()
-        self.rect.x = 0
-        self.rect.y = 20
+        self.rect.x = 64
+        self.rect.y = 64
 
-    def moveRight(self):
-        self.x = self.x + self.speed
+   # def moveRight(self):
+    #    self.x = self.x + self.speed
 
-    def moveLeft(self):
-        self.x = self.x - self.speed
+    #def moveLeft(self):
+     #   self.x = self.x - self.speed
 
-    def moveUp(self):
-        self.y = self.y - self.speed
+    #def moveUp(self):
+     #   self.y = self.y - self.speed
 
-    def moveDown(self):
-        self.y = self.y + self.speed
+    #def moveDown(self):
+     #   self.y = self.y + self.speed
 
 
 class Maze:
@@ -40,7 +40,7 @@ class Maze:
         self.N = 8
         self.maze = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
                      [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                     [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                      [1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
                      [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
                      [1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
@@ -66,7 +66,7 @@ class Maze:
         by = 0
         for i in range(0, self.M * self.N):
             if self.maze[bx + (by * self.M)] == 1:
-                display_surf.blit(image_surf, (bx * 50, by * 50))
+                display_surf.blit(image_surf, (bx * 64, by * 64))
 
             bx = bx + 1
             if bx > self.M - 1:
@@ -90,42 +90,47 @@ class App:
     windowWidth = 800
     windowHeight = 600
     player = 0
-    screen = None
+
 
     def __init__(self):
+        self.sprite = pygame.sprite.Group()
         self._running = True
         self._display_surf = None
         self._image_surf = None
         self._block_surf = None
         self.player = Player()
         self.maze = Maze()
+        self._background_colour = (255, 255, 255)
+        self.on_init()
+
         self.Run()
 
     def Run(self):
         pygame.init()
-
-        self.windowHeight = len(self.maze.maze) * wall_height
-        self.windowWidth = len(self.maze.maze) * wall_width
         self.screen = pygame.display.set_mode((self.windowWidth, self.windowHeight))
 
         pygame.display.init()
         pygame.display.set_caption("The Maze Game")
-        pygame.key.set_repeat(50)
+        pygame.key.set_repeat(25)
         self.clock = pygame.time.Clock()
         self.running = True
-        self.screen.fill(self._display_surf)
+        self.screen.fill(self._background_colour)
 
-        self.sprite = pygame.sprite.Group()
         for piece in self.maze.pieces:
-            self.sprites.add(piece)
-        self.sprites.add(self.player)
-        self.sprites.draw(self.screen)
+            self.sprite.add(piece)
+        self.sprite.add(self.player)
+        self.sprite.draw(self.screen)
         pygame.display.flip()
+
+        while self._running:
+            self.Events(pygame.event.get())
+            pygame.display.flip()
+            self.clock.tick(50)
+        pygame.quit()
 
     def on_init(self):
         pygame.init()
         self._display_surf = pygame.display.set_mode((self.windowWidth, self.windowHeight), pygame.HWSURFACE)
-
         pygame.display.set_caption("Maze Game")
         self._running = True
         self._image_surf = pygame.image.load("player.png").convert()
@@ -151,33 +156,57 @@ class App:
 
         # Method manages events - keystrokes, quitting, movement, collision and drawing IF movement has occured
 
-        prev_location = (self.player.rect.x, self.player.rect.y)
+        prev_location = [self.player.rect.x, self.player.rect.y]
+        possible_location_x = [self.player.rect.x, self.player.rect.y]
+        possible_location_y = [self.player.rect.x, self.player.rect.y]
+        next_position = [self.player.rect.x, self.player.rect.y]
         for e in events:
             if e.type == QUIT or e.type == KEYDOWN and e.key == K_ESCAPE:
                 self._running = 0
-            if e.type == pygame.KEYDOWN:
-                if e.key in [K_LEFT]:
-                    self.player.rect.x -= self.player.speed if self.player.rect.x > 0 else 0
-                if e.key in [K_RIGHT]:
-                    self.player.rect.x += self.player.speed if self.player.rect.x < self.windowWidth else 0
-                if e.key in [K_UP]:
-                    self.player.rect.y -= self.player.speed if self.player.rect.y > 0 else 0
-                if e.key in [K_DOWN]:
-                    self.player.rect.y += self.player.speed if self.player.rect.y < self.windowHeight else 0
-                if any(piece.rect.colliderect(self.player.rect) for piece in self.maze.pieces):
-                    # if colliderect with any maze wall pieces and the player is True, player is returned to their
-                    # previous location before screen is updated
+        keys = pygame.key.get_pressed()
 
-                    self.player.rect.x, self.player.rect.y = prev_location
-                    # print('collision')
-                if prev_location != (self.player.rect.x, self.player.rect.y):
-                    # if player location does not match previous location, the background and sprites will need to be
-                    # drawn again
+        if keys[K_LEFT] or keys[K_a]:
+            possible_location_x[0] -= self.player.speed if self.player.rect.x > 0 else 0
+            print("a")
+        if keys[K_RIGHT] or keys[K_d]:
+            possible_location_x[0] += self.player.speed if self.player.rect.x < self.windowWidth - 32 else 0
+            print("d")
+        if keys[K_UP] or keys[K_w]:
+            possible_location_y[1] -= self.player.speed if self.player.rect.y > 0 else 0
+            print("w")
+        if keys[K_DOWN] or keys[K_s]:
+            possible_location_y[1] += self.player.speed if self.player.rect.y < self.windowHeight - 32 else 0
+            print("s")
 
-                    self.screen.fill(self.maze.backgroud)
-                    self.sprites.draw(self.screen)
+        self.player.rect.x, self.player.rect.y = possible_location_x
+        if not any(piece.rect.colliderect(self.player.rect) for piece in self.maze.pieces):
+            # if colliderect with any maze wall pieces and the player is True, player is returned to their
+            # previous location before screen is updated
+
+            next_position = (self.player.rect.x, next_position[1])
+            #print('collision')
+
+        self.player.rect.x, self.player.rect.y = possible_location_y
+
+        if not any(piece.rect.colliderect(self.player.rect) for piece in self.maze.pieces):
+            # if colliderect with any maze wall pieces and the player is True, player is returned to their
+            # previous location before screen is updated
+
+            next_position = (next_position[0], self.player.rect.y)
+            # print('collision')
+
+        self.player.rect.x, self.player.rect.y = next_position
+
+        if prev_location != (self.player.rect.x, self.player.rect.y):
+
+            # if player location does not match previous location, the background and sprites will need to be
+            # drawn agains
+
+            self.screen.fill(self._background_colour)
+            self.sprite.draw(self.screen)
+            pygame.display.update()
 
 
 if __name__ == "__main__":
-    theApp = App()
-    theApp.on_execute()
+    game = App()
+
